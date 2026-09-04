@@ -1,14 +1,14 @@
 import os
+import random
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(title="FinCash AI Backend")
 
 # Enable CORS for React frontend
 app.add_middleware(
@@ -19,9 +19,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure OpenAI
-api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key) if api_key else None
+openai_key = os.getenv("OPENAI_API_KEY")
+gemini_key = os.getenv("GEMINI_API_KEY")
+
+openai_client = None
+if openai_key and openai_key.strip():
+    try:
+        from openai import OpenAI
+        openai_client = OpenAI(api_key=openai_key.strip())
+    except Exception as e:
+        print(f"OpenAI Client Init Note: {e}")
+
+gemini_model = None
+if gemini_key and gemini_key.strip():
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=gemini_key.strip())
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    except Exception as e:
+        print(f"Gemini Client Init Note: {e}")
 
 class EvaluationRequest(BaseModel):
     quiz_score: int
@@ -35,87 +51,181 @@ class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = []
 
+SYSTEM_PROMPT = """You are the official FinCash AI Financial Assistant (AI Mentor), an intelligent assistant for the FinCash financial wellness platform.
+
+SCOPE & PERMITTED TOPICS:
+1. FinCash Platform Features & Navigation:
+   - Personalized Financial Roadmaps
+   - Budget Lab & Expense Tracking
+   - Tax Center & Tax Planning (e.g., Income tax, Section 80C, ELSS, deduction rules)
+   - Investments & Stock Market Insights
+   - Insurance Recommendations (Health, Life)
+   - Financial Simulations & Gamified Learning Paths (XP, Streaks, Badges)
+   - Mentor Sessions & Expert Consultations
+
+2. Financial Concepts & Financial Literacy:
+   - Personal finance, budgeting, emergency funds, debt/loan management, credit scores (CIBIL).
+   - Taxes, tax optimization, and tax saving instruments.
+   - Investment vehicles: Stocks, Equity, Mutual Funds, Index Funds, SIPs, Bonds, Real Estate, Gold, ETFs.
+   - Cryptocurrencies & Bitcoin: Blockchain fundamentals, crypto market trends, risk management, and digital asset principles.
+   - General economic and financial literacy concepts.
+
+STRICT DENIAL FOR UNRELATED / OFF-TOPIC QUERIES:
+If the user asks ANY query that is completely unrelated to finance, money management, investments, crypto, taxes, economics, business, or the FinCash platform (for example: cooking, recipes, movies, entertainment, sports, non-financial coding/programming, fiction writing, jokes, weather, general trivia):
+You MUST POLITELY DENY to answer.
+
+Denial Guidelines:
+- State clearly and politely that you are FinCash's AI Assistant specialized strictly in finance, money management, and the FinCash platform.
+- Invite the user to ask any questions related to finance, budgeting, taxes, crypto, stock markets, or FinCash.
+
+Example denial response:
+"I am your FinCash AI Assistant, specialized strictly in financial literacy, investments, budgeting, taxes, crypto, and the FinCash platform. I cannot assist with unrelated topics. Please feel free to ask me any questions about personal finance, money management, or FinCash!"
+
+TONE & STYLE:
+- Helpful, polite, concise, professional, and clear.
+"""
+
+def is_finance_related(msg: str) -> bool:
+    msg_lower = msg.lower()
+    allowed_keywords = [
+        "fincash", "roadmap", "budget", "tax", "invest", "simulation", "mentor",
+        "learning", "xp", "streak", "badge", "score", "money", "finance", "literacy",
+        "saving", "save", "expense", "spend", "income", "salary", "bitcoin", "btc",
+        "crypto", "cryptocurrency", "stock", "market", "share", "equity", "fund",
+        "sip", "bond", "gold", "bank", "loan", "interest", "fd", "rd", "elss",
+        "80c", "nps", "insurance", "policy", "asset", "portfolio", "dividend",
+        "wealth", "debt", "credit", "cibil", "inflation", "economy", "rupee", "dollar",
+        "inr", "pay", "401k", "roth", "ira", "mortgage", "yield", "capital", "wallet",
+        "blockchain", "altcoin", "trading", "profit", "loss", "risk", "hedging", "hello",
+        "hi", "hey", "help", "what", "how", "who"
+    ]
+    # Check if any financial keyword is in message
+    return any(kw in msg_lower for kw in allowed_keywords)
+
 @app.post("/api/evaluate")
 async def evaluate_user(data: EvaluationRequest):
-    if not client:
-        return {
-            "suggestion": "AI Engine is in demo mode (API Key missing). Based on your score of {}/{} and your goals, I recommend starting with a diversified Index Fund and building a 6-month emergency buffer.".format(data.quiz_score, data.total_questions),
-            "type": "Low-Risk Index Funds"
-        }
+    prompt = f"""
+    Act as a professional financial advisor for FinCash.
+    User finished watching: "{data.video_title}".
+    Quiz Score: {data.quiz_score}/{data.total_questions}
+    User's Goal: "{data.assignment_text}"
+    User's Savings: ₹{data.user_savings}
+    User's Salary: ₹{data.user_salary}
+    
+    Evaluate their understanding and suggest 3 actionable investment steps. Keep it under 150 words.
+    """
 
-    try:
-        prompt = f"""
-        Act as a professional financial advisor.
-        User just finished watching a video titled: "{data.video_title}".
-        Quiz Score: {data.quiz_score}/{data.total_questions}
-        User's Financial Goal/Assignment: "{data.assignment_text}"
-        User's Current Savings: ₹{data.user_savings}
-        User's Monthly Salary: ₹{data.user_salary}
-        
-        Based on this data:
-        1. Evaluate their understanding of the topic.
-        2. Suggest a specific type of investment (e.g., Equity, Debt, Gold, ELSS, Mutual Funds).
-        3. Provide 3 actionable steps.
-        
-        Keep the response professional, encouraging, and concise (max 150 words).
-        """
-        
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a professional financial advisor for the platform FinCash. You provide perfectly logical answers about the platform and general financial advice."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300
-        )
-        
-        return {
-            "suggestion": response.choices[0].message.content,
-            "type": "OpenAI Personalized Recommendation"
-        }
-    except Exception as e:
-        print(f"Error in evaluate_user: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if gemini_model:
+        try:
+            res = gemini_model.generate_content(prompt)
+            if res and res.text:
+                return {"suggestion": res.text, "type": "Gemini Personalized Recommendation"}
+        except Exception as e:
+            print(f"Gemini API evaluate error: {e}")
+
+    if openai_client:
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a professional financial advisor for FinCash."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300
+            )
+            return {"suggestion": response.choices[0].message.content, "type": "OpenAI Personalized Recommendation"}
+        except Exception as e:
+            print(f"OpenAI API evaluate error: {e}")
+
+    return {
+        "suggestion": f"Based on your score of {data.quiz_score}/{data.total_questions} and your financial goal, we recommend building a 6-month emergency buffer and starting a low-risk index fund SIP.",
+        "type": "FinCash Financial Recommendation"
+    }
 
 @app.post("/api/chat")
 async def chat_with_mentor(data: ChatRequest):
-    if not client:
-        return {"response": "I'm currently in demo mode. How can I help you with your finances today?"}
-    
-    try:
-        messages = [
-            {"role": "system", "content": "You are a professional financial advisor for the platform FinCash. You provide perfectly logical answers about the platform and general financial advice. Be concise and professional."}
-        ]
-        # Append history if available
-        if data.history:
-            messages.extend(data.history)
-        
-        # Append current message
-        messages.append({"role": "user", "content": data.message})
+    # 1. Try Gemini API if key configured
+    if gemini_model:
+        try:
+            # Build conversation context for Gemini
+            conversation_history = ""
+            if data.history:
+                for h in data.history[-6:]:
+                    sender = "User" if h.get("role") in ["user"] else "Assistant"
+                    conversation_history += f"{sender}: {h.get('content', '')}\n"
+            
+            full_prompt = f"{SYSTEM_PROMPT}\n\nRecent History:\n{conversation_history}\nUser: {data.message}\nAssistant:"
+            res = gemini_model.generate_content(full_prompt)
+            if res and res.text:
+                return {"response": res.text.strip()}
+        except Exception as e:
+            print(f"Gemini API chat error: {e}")
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=500
-        )
-        return {"response": response.choices[0].message.content}
-    except Exception as e:
-        print(f"Error in chat_with_mentor: {e}")
-        # Fallback to demo response on any error (API quota, network, etc.)
-        demo_responses = [
-            "That's a great question! I recommend starting with your emergency fund first—aim to save 3-6 months of expenses. Once that's secured, consider Index Funds for long-term wealth building.",
-            "Tax optimization is crucial for Indian earners. Make sure you're using Section 80C for investments (max ₹1.5L), and explore ELSS funds for dual benefits.",
-            "For investing, the 50-30-20 rule is a solid starting point: 50% needs, 30% wants, 20% savings and investments. Let's build your first portfolio!",
-            "Given the current market, diversification is key. Consider a mix of equity, debt, and gold based on your risk appetite and timeline.",
-            "Your question touches an important area. Could you share more about your financial goals? That will help me give you more personalized advice."
-        ]
-        import random
-        return {"response": random.choice(demo_responses)}
+    # 2. Try OpenAI API if key configured
+    if openai_client:
+        try:
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            if data.history:
+                for item in data.history[-6:]:
+                    role = "assistant" if item.get("role") in ["bot", "assistant"] else "user"
+                    messages.append({"role": role, "content": item.get("content", "")})
+            messages.append({"role": "user", "content": data.message})
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=500
+            )
+            return {"response": response.choices[0].message.content.strip()}
+        except Exception as e:
+            print(f"OpenAI API chat error: {e}")
+
+    # 3. Fallback / Guardrail domain handler (if API keys fail or quota exceeded)
+    msg_lower = data.message.lower()
+    
+    # Check off-topic triggers
+    off_topic_words = ["recipe", "cook", "movie", "film", "actor", "sports", "football", "cricket", "game", "weather", "poem", "song", "joke", "story", "code python for web", "html button"]
+    if any(word in msg_lower for word in off_topic_words) and not any(f in msg_lower for f in ["fincash", "tax", "stock", "budget", "crypto", "bitcoin", "money", "invest"]):
+        return {
+            "response": "I am your FinCash AI Assistant, specialized strictly in financial literacy, investments, budgeting, taxes, crypto, and the FinCash platform. I cannot assist with unrelated topics. Please feel free to ask me any questions about personal finance, money management, or FinCash!"
+        }
+
+    # FinCash Platform & Financial responses
+    if "fincash" in msg_lower:
+        return {
+            "response": "FinCash is a comprehensive financial wellness platform! We provide personalized financial roadmaps, AI investment advice, tax optimization tools (Tax Center), interactive budget labs, financial simulations, and expert mentor booking to help you master your finances."
+        }
+    elif "bitcoin" in msg_lower or "crypto" in msg_lower:
+        return {
+            "response": "Bitcoin and cryptocurrencies are decentralized digital assets powered by blockchain technology. While they offer high potential returns, they carry high volatility. In FinCash, we recommend allocating no more than 5-10% of your portfolio to high-risk assets like crypto, alongside stable investments like index funds and SIPs."
+        }
+    elif "tax" in msg_lower or "80c" in msg_lower or "elss" in msg_lower:
+        return {
+            "response": "Under Section 80C of the Income Tax Act in India, you can claim tax deductions up to ₹1.5 Lakh per year. Key tax-saving instruments include ELSS (Equity Linked Savings Scheme mutual funds with a 3-year lock-in), PPF, NPS, and Term Insurance. Check out the FinCash Tax Center for personalized tax planning!"
+        }
+    elif "stock" in msg_lower or "market" in msg_lower or "share" in msg_lower or "invest" in msg_lower:
+        return {
+            "response": "Investing in the stock market allows your money to grow against inflation. Beginners can start with low-cost Nifty 50 or Sensex Index Funds via Systematic Investment Plans (SIPs). Remember the golden rule of investing: diversify your portfolio and maintain a long-term perspective!"
+        }
+    elif "budget" in msg_lower or "expense" in msg_lower or "saving" in msg_lower:
+        return {
+            "response": "A solid financial plan begins with the 50/30/20 budgeting rule: 50% of your income for needs, 30% for wants, and 20% for savings and investments. First priority should be building an emergency fund covering 3 to 6 months of expenses in a high-yield savings account or liquid fund."
+        }
+    elif "mentor" in msg_lower or "human" in msg_lower:
+        return {
+            "response": "Through the FinCash Human Mentors tab, you can book 1-on-1 sessions with verified certified financial advisors and tax experts for personalized strategy calls with secure payment processing."
+        }
+    
+    # Generic greeting or financial assistance fallback
+    return {
+        "response": "Hello! I am your FinCash AI Assistant. I can help you with budgeting, tax optimization (Section 80C), stock market investing, Bitcoin & crypto, or navigating the FinCash platform. What financial question can I help you with today?"
+    }
 
 @app.get("/")
 async def root():
-    return {"message": "FinCash AI Backend (OpenAI) is running"}
+    return {"message": "FinCash AI Backend is running"}
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

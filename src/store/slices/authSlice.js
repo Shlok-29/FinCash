@@ -18,6 +18,10 @@ export const authSlice = createSlice({
     updateProfile: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+      } else {
+        state.user = action.payload;
+        state.role = action.payload?.role || 'user';
+        state.isAuthenticated = true;
       }
     },
     logout: (state) => {

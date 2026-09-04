@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 require('dotenv').config();
 
 const User = require('./models/User');
@@ -180,9 +181,27 @@ app.post('/api/payment/verify', async (req, res) => {
 });
 
 // MongoDB Connection
-mongoose.connect(MONGO_URI)
+async function connectToMongo() {
+  if (process.env.MONGO_URI) {
+    try {
+      await mongoose.connect(process.env.MONGO_URI);
+      console.log('Connected to MongoDB at configured MONGO_URI');
+      return;
+    } catch (err) {
+      console.warn('Could not connect to configured MongoDB URI, falling back to in-memory MongoDB:', err.message);
+    }
+  }
+
+  const mongod = await MongoMemoryServer.create();
+  const uri = mongod.getUri();
+  console.log('Started in-memory MongoDB at', uri);
+  await mongoose.connect(uri);
+  console.log('Connected to in-memory MongoDB');
+}
+
+connectToMongo()
   .then(async () => {
-      console.log('Connected to MongoDB');
+      console.log('Proceeding with backend startup after MongoDB connection');
       // Seed Admin User
       const adminExists = await User.findOne({ email: 'admin@fincash.com' });
       if (!adminExists) {
@@ -563,22 +582,71 @@ app.post('/api/login', async (req, res) => {
 
 // Roadmap Routes
 // Get User Profile
-// Get User Profile
 app.get('/api/profile', authenticateToken, async (req, res) => {
     try {
         const isDBConnected = mongoose.connection.readyState === 1;
         if (isDBConnected) {
+            if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
+                return res.status(401).json({ message: 'Invalid token user ID' });
+            }
             const user = await User.findById(req.user.id).select('-password');
+            if (!user) {
+                return res.status(401).json({ message: 'User not found' });
+            }
             const personalized = await PersonalizedData.findOne({ userId: user._id });
             res.json({ ...user._doc, personalized });
         } else {
             console.log('Using Mock Profile');
             const user = mockUsers.find(u => u._id === req.user.id);
-            if (!user) return res.status(404).json({ message: 'User not found' });
+            if (!user) return res.status(401).json({ message: 'User not found' });
             res.json({ ...user, personalized: null });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching profile' });
+        res.status(401).json({ message: 'Error fetching profile' });
+    }
+});
+
+app.put('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const { name, email, avatar, goal, salary, savings, expenses } = req.body;
+        const isDBConnected = mongoose.connection.readyState === 1;
+        
+        if (isDBConnected) {
+            const updateFields = {};
+            if (name !== undefined) updateFields.name = name;
+            if (email !== undefined) updateFields.email = email;
+            if (avatar !== undefined) updateFields.avatar = avatar;
+            if (goal !== undefined) updateFields.goal = goal;
+            if (salary !== undefined) updateFields.salary = Number(salary);
+            if (savings !== undefined) updateFields.savings = Number(savings);
+            if (expenses !== undefined) updateFields.expenses = expenses;
+
+            const updatedUser = await User.findByIdAndUpdate(
+                req.user.id,
+                { $set: updateFields },
+                { new: true }
+            ).select('-password');
+            res.json(updatedUser);
+        } else {
+            console.log('Using Mock Profile Update');
+            const userIndex = mockUsers.findIndex(u => u._id === req.user.id);
+            if (userIndex !== -1) {
+                if (name !== undefined) mockUsers[userIndex].name = name;
+                if (email !== undefined) mockUsers[userIndex].email = email;
+                if (avatar !== undefined) mockUsers[userIndex].avatar = avatar;
+                if (goal !== undefined) mockUsers[userIndex].goal = goal;
+                if (salary !== undefined) mockUsers[userIndex].salary = Number(salary);
+                if (savings !== undefined) mockUsers[userIndex].savings = Number(savings);
+                if (expenses !== undefined) mockUsers[userIndex].expenses = expenses;
+                const { password, ...userWithoutPassword } = mockUsers[userIndex];
+                res.json(userWithoutPassword);
+            } else {
+                res.status(404).json({ message: 'User not found' });
+            }
+        }
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: 'Error updating profile' });
     }
 });
 

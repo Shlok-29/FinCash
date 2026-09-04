@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useDispatch, useSelector } from 'react-redux';
+import { login, logout } from '../../store/slices/authSlice';
+import axios from 'axios';
 import { 
   BarChart3, 
   Users, 
@@ -10,27 +13,110 @@ import {
   Terminal, 
   ShieldCheck, 
   FileStack, 
-  Settings,
   LogOut,
   Menu,
   X,
   Search,
-  Bell
+  Bell,
+  Activity,
+  Shield,
+  UserCheck
 } from 'lucide-react';
 
 const AdminDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { role, isAuthenticated } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+  const { user, role, isAuthenticated } = useSelector((state) => state.auth);
+  
+  const [authChecking, setAuthChecking] = useState(!isAuthenticated && !!localStorage.getItem('token'));
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token && !isAuthenticated) {
-      navigate('/login');
-    } else if (isAuthenticated && role !== 'admin') {
-      navigate('/user');
+    const fetchNotifications = async (tok) => {
+      try {
+        if (!tok) return;
+        const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+          headers: { Authorization: `Bearer ${tok}` }
+        });
+        if (notifRes.data && Array.isArray(notifRes.data)) {
+          setNotifications(notifRes.data);
+          setUnreadCount(notifRes.data.filter(n => !n.isRead).length);
+        }
+      } catch (err) {
+        console.error("Error fetching admin notifications:", err);
+      }
+    };
+
+    const syncAdminProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setAuthChecking(false);
+        return;
+      }
+      try {
+        const response = await axios.get('http://localhost:5000/api/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data) {
+          dispatch(login({ user: response.data, role: response.data.role || 'admin' }));
+          fetchNotifications(token);
+        }
+      } catch (error) {
+        console.error("Admin profile sync failed:", error);
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          localStorage.removeItem('token');
+          dispatch(logout());
+        }
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+
+    syncAdminProfile();
+    const interval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) fetchNotifications(token);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [dispatch]);
+
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`http://localhost:5000/api/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (notifRes.data && Array.isArray(notifRes.data)) {
+        setNotifications(notifRes.data);
+        setUnreadCount(notifRes.data.filter(n => !n.isRead).length);
+      }
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
     }
-  }, [role, isAuthenticated, navigate]);
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  if (authChecking) {
+    return (
+      <div className="flex h-screen w-screen bg-gray-950 items-center justify-center text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-bold text-gray-400">Loading FinCash Admin Control...</p>
+        </div>
+      </div>
+    );
+  }
 
   const adminNavItems = [
     { name: 'Overview', path: '/admin', icon: <BarChart3 size={20} /> },
@@ -56,49 +142,68 @@ const AdminDashboardLayout = () => {
 
       {/* Sidebar */}
       <aside 
-        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-300 flex flex-col ${
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         <div className="flex items-center justify-between p-6">
-          <div className="flex items-center gap-2 text-rose-500 font-bold text-xl tracking-tight">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
-              <img src="/favicon.png" alt="FinCash Favicon" className="w-full h-full object-contain" />
+          <div className="flex items-center gap-3 text-rose-500 font-bold text-xl tracking-tight">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 p-0.5 shadow-lg shadow-rose-600/30 flex items-center justify-center">
+              <div className="w-full h-full bg-gray-950 rounded-[10px] flex items-center justify-center">
+                <img src="/favicon.png" alt="FinCash Favicon" className="w-6 h-6 object-contain" />
+              </div>
             </div>
-            AdminPanel
+            <div className="flex flex-col">
+              <span className="leading-tight text-white font-extrabold font-outfit">FinCash</span>
+              <span className="text-[10px] text-rose-400 font-black tracking-wider uppercase">Admin Control</span>
+            </div>
           </div>
-          <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
+          <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
             <X size={24} />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-2 space-y-1">
-          {adminNavItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.path === '/admin'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive 
-                    ? 'bg-rose-600/20 text-rose-400 border border-rose-500/30' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`
-              }
-              onClick={() => setSidebarOpen(false)}
-            >
-              {item.icon}
-              <span className="font-medium text-sm">{item.name}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <div className="px-4 py-2 flex-1 overflow-y-auto">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">
+            System Administration
+          </div>
+          <nav className="flex flex-col gap-1.5">
+            {adminNavItems.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                end={item.path === '/admin'}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    isActive 
+                      ? 'bg-rose-600/20 text-rose-400 border border-rose-500/30 shadow-lg shadow-rose-600/10 font-bold' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/80 font-medium'
+                  }`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                {item.icon}
+                <span className="text-sm">{item.name}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
-        <div className="p-4 border-t border-slate-800">
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all text-sm">
-            <Settings size={20} />
-            <span>Settings</span>
-          </button>
-          <button className="w-full mt-1 flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all text-sm font-bold">
+        <div className="mt-auto p-4 border-t border-gray-800">
+          <div className="bg-gray-950/60 p-3 rounded-xl border border-gray-800 mb-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center font-bold text-xs">
+              <Shield size={16} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-gray-200 truncate">{user?.name || 'Administrator'}</span>
+              <span className="text-[10px] text-rose-400 font-semibold truncate">{user?.email || 'admin@fincash.com'}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all font-bold text-sm"
+          >
             <LogOut size={20} />
             <span>Sign Out</span>
           </button>
@@ -108,36 +213,107 @@ const AdminDashboardLayout = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-md border-b border-slate-800">
+        <header className="h-20 flex items-center justify-between px-6 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800 z-30">
           <div className="flex items-center gap-4">
-            <button className="md:hidden text-slate-400" onClick={() => setSidebarOpen(true)}>
+            <button 
+              className="md:hidden text-gray-400 hover:text-white"
+              onClick={() => setSidebarOpen(true)}
+            >
               <Menu size={24} />
             </button>
-            <div className="hidden sm:flex items-center gap-2 bg-slate-800 rounded-full px-4 py-1.5 border border-slate-700">
-              <Search size={16} className="text-slate-400" />
-              <input type="text" placeholder="Global search..." className="bg-transparent border-none outline-none text-xs w-48" />
+            <div className="hidden sm:flex items-center gap-2 bg-gray-800/50 rounded-full px-4 py-2 border border-gray-700 focus-within:border-rose-500 transition-colors">
+              <Search size={18} className="text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search admin records, users, logs..." 
+                className="bg-transparent border-none outline-none text-sm w-64 placeholder-gray-500 text-white"
+              />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-xs font-bold bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full border border-rose-500/20 uppercase tracking-tighter">
-              System: Stable
+            <div className="hidden sm:flex items-center gap-3 mr-2">
+              <div className="flex items-center gap-1.5 bg-rose-500/10 text-rose-400 px-3 py-1.5 rounded-full text-xs font-bold border border-rose-500/20">
+                <ShieldCheck size={14} /> ⭐ Admin Portal
+              </div>
+              <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-500/20">
+                <Activity size={14} /> System Live
+              </div>
             </div>
-            <button className="relative p-2 text-slate-400 hover:text-white">
-              <Bell size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
-            </button>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-orange-500 p-0.5 cursor-pointer">
-              <div className="w-full h-full bg-slate-900 rounded-md flex items-center justify-center text-[10px] font-bold">
-                AD
+            
+            {/* Notifications Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative p-2 transition-colors ${showNotifications ? 'text-white bg-white/10 rounded-full' : 'text-gray-400 hover:text-white'}`}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 rounded-full text-[10px] flex items-center justify-center text-white border-2 border-gray-900 font-bold">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-4 w-80 bg-gray-900 border border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm">System Alerts</h3>
+                        <span className="text-[10px] bg-rose-600 px-2 py-0.5 rounded-full text-white font-black uppercase">{unreadCount} New</span>
+                      </div>
+                      <button 
+                        onClick={() => setShowNotifications(false)}
+                        className="text-gray-500 hover:text-white transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div 
+                            key={n._id}
+                            onClick={() => !n.isRead && markAsRead(n._id)}
+                            className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer relative ${!n.isRead ? 'bg-rose-500/5' : 'opacity-60'}`}
+                          >
+                            {!n.isRead && <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full" />}
+                            <div className="flex justify-between items-start gap-2">
+                              <h4 className="text-xs font-bold text-white mb-1">{n.title}</h4>
+                              <span className="text-[9px] text-gray-500 font-bold whitespace-nowrap">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 leading-relaxed">{n.message}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center">
+                          <Bell size={32} className="text-gray-700 mx-auto mb-2 opacity-20" />
+                          <p className="text-xs text-gray-500 font-bold">No admin notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 cursor-pointer block hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-gray-900 rounded-full border-2 border-gray-900 flex items-center justify-center overflow-hidden font-black text-xs text-rose-400">
+                {user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'AD'}
               </div>
             </div>
           </div>
         </header>
 
-        {/* Viewport */}
-        <div className="flex-1 overflow-auto bg-slate-950 p-6">
-          <div className="max-w-7xl mx-auto">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto bg-gray-950 p-6 md:p-8 flex flex-col min-h-0">
+          <div className="max-w-6xl mx-auto flex-1 flex flex-col min-h-0 w-full">
             <Outlet />
           </div>
         </div>

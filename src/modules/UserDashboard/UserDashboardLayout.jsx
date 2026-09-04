@@ -3,11 +3,11 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Wallet, FileText, TrendingUp, 
-  Layers, MessageSquare, Users, Settings, LogOut,
+  Layers, MessageSquare, Users, Info, LogOut,
   Menu, X, Bell, Search, PlayCircle, Calendar, User
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateProfile, logout } from '../../store/slices/authSlice';
+import { login, updateProfile, logout } from '../../store/slices/authSlice';
 import axios from 'axios';
 
 const NavItem = ({ item, setSidebarOpen }) => {
@@ -68,45 +68,74 @@ const UserDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector(state => state.auth);
-
-  if (!isAuthenticated && !localStorage.getItem('token')) {
-    return <Navigate to="/login" replace />;
-  }
+  const [authChecking, setAuthChecking] = useState(!isAuthenticated && !!localStorage.getItem('token'));
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchNotifications = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      const response = await axios.get('http://localhost:5000/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setNotifications(response.data);
-      setUnreadCount(response.data.filter(n => !n.isRead).length);
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  };
-
   useEffect(() => {
-    const syncProfile = async () => {
+    const fetchNotifications = async (tok) => {
       try {
-        const token = localStorage.getItem('token');
+        if (!tok) return;
+        const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+          headers: { Authorization: `Bearer ${tok}` }
+        });
+        if (notifRes.data && Array.isArray(notifRes.data)) {
+          setNotifications(notifRes.data);
+          setUnreadCount(notifRes.data.filter(n => !n.isRead).length);
+        }
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    };
+
+    const syncProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setAuthChecking(false);
+        return;
+      }
+      try {
         const response = await axios.get('http://localhost:5000/api/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        dispatch(updateProfile(response.data));
+        if (response.data) {
+          dispatch(login({ user: response.data, role: response.data.role || 'user' }));
+          fetchNotifications(token);
+        }
       } catch (error) {
         console.error("Profile sync failed:", error);
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          localStorage.removeItem('token');
+          dispatch(logout());
+        }
+      } finally {
+        setAuthChecking(false);
       }
     };
+
     syncProfile();
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // 30s refresh
+    const interval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) fetchNotifications(token);
+    }, 30000);
     return () => clearInterval(interval);
   }, [dispatch]);
+
+  if (authChecking) {
+    return (
+      <div className="flex h-screen w-screen bg-gray-950 items-center justify-center text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-bold text-gray-400">Loading FinCash Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && !authChecking) {
+    return <Navigate to="/login" replace />;
+  }
 
   const markAsRead = async (id) => {
     try {
@@ -133,6 +162,7 @@ const UserDashboardLayout = () => {
     { name: 'Simulations', path: '/user/simulations', icon: <Layers size={20} /> },
     { name: 'AI Mentor', path: '/user/ai-mentor', icon: <MessageSquare size={20} /> },
     { name: 'Profile', path: '/user/profile', icon: <User size={20} /> },
+    { name: 'About FinCash', path: '/user/about', icon: <Info size={20} /> },
     { 
       name: 'Human Mentors', 
       path: '/human-mentor', 
@@ -171,7 +201,7 @@ const UserDashboardLayout = () => {
           </button>
         </div>
 
-        <div className="px-4 py-2">
+        <div className="px-4 py-2 flex-1 overflow-y-auto">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">
             Learning Paths
           </div>
@@ -184,11 +214,17 @@ const UserDashboardLayout = () => {
 
         <div className="mt-auto p-4 border-t border-gray-800">
           <NavLink 
-            to="/user/settings"
-            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all"
+            to="/user/about"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                isActive 
+                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' 
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`
+            }
           >
-            <Settings size={20} />
-            <span className="font-medium">Settings</span>
+            <Info size={20} />
+            <span className="font-medium">About FinCash</span>
           </NavLink>
           <button 
             onClick={handleLogout}

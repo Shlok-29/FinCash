@@ -16,6 +16,7 @@ import Simulations from './modules/UserDashboard/pages/Simulations';
 import AIMentor from './modules/UserDashboard/pages/AIMentor';
 import HumanMentors from './modules/UserDashboard/pages/HumanMentors';
 import Profile from './modules/UserDashboard/pages/Profile';
+import About from './modules/UserDashboard/pages/About';
 
 // Admin Dashboard Pages
 import AdminOverview from './modules/AdminDashboard/pages/Overview';
@@ -94,6 +95,7 @@ function App() {
         <Route path="simulations" element={<Simulations />} />
         <Route path="ai-mentor" element={<AIMentor />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="about" element={<About />} />
       </Route>
 
       {/* Admin Dashboard Routes */}

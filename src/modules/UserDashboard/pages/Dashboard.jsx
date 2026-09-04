@@ -176,7 +176,7 @@ const Dashboard = () => {
             <div className="flex gap-4">
               <div className="flex flex-col items-center justify-center bg-gray-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                 <Award size={32} className="text-yellow-400 mb-1" />
-                <span className="text-2xl font-bold">{userStats.badges}</span>
+                <span className="text-2xl font-bold">{Array.isArray(userStats.badges) ? userStats.badges.length : (userStats.badges || 0)}</span>
                 <span className="text-xs text-gray-300 uppercase tracking-wider">Badges</span>
               </div>
               <div className="flex flex-col items-center justify-center bg-gray-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/10">
