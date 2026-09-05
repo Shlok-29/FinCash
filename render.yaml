@@ -1,0 +1,30 @@
+services:
+  # Main Node.js Express Backend
+  - type: web
+    name: fincash-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+
+  # Python FastAPI AI Mentor Backend
+  - type: web
+    name: fincash-ai-backend
+    env: python
+    rootDir: ai_backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

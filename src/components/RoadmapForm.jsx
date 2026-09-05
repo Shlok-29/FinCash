@@ -4,6 +4,7 @@ import { X, Calculator, Info, CheckCircle2, Sparkles } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateProfile } from '../store/slices/authSlice';
 import axios from 'axios';
+import { API_BASE_URL } from '../api/axios';
 
 const RoadmapForm = ({ isOpen, onClose }) => {
   const { user } = useSelector((state) => state.auth);
@@ -46,7 +47,7 @@ const RoadmapForm = ({ isOpen, onClose }) => {
     try {
       setIsSaving(true);
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/roadmap', roadmapData, {
+      const response = await axios.post(`${API_BASE_URL}/api/roadmap`, roadmapData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

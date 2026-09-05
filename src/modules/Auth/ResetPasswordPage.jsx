@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, ArrowRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../api/axios';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
@@ -24,7 +25,7 @@ const ResetPasswordPage = () => {
     
     setLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/reset-password', { token, newPassword });
+      await axios.post(`${API_BASE_URL}/api/reset-password`, { token, newPassword });
       setStatus('success');
       setMessage('Password updated successfully!');
       setTimeout(() => navigate('/login'), 2000);

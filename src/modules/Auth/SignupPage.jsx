@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 import { login } from '../../store/slices/authSlice';
 import { Mail, Lock, User, ArrowRight, Activity } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../api/axios';
 
 const SignupPage = () => {
   const [name, setName] = useState('');
@@ -20,7 +21,7 @@ const SignupPage = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/signup', { name, email, password });
+      const response = await axios.post(`${API_BASE_URL}/api/signup`, { name, email, password });
       const user = response.data.user;
       dispatch(login({ user: user, role: user.role }));
       localStorage.setItem('token', response.data.token);

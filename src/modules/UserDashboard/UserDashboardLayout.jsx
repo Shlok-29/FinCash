@@ -9,6 +9,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { login, updateProfile, logout } from '../../store/slices/authSlice';
 import axios from 'axios';
+import { API_BASE_URL } from '../../api/axios';
 
 const NavItem = ({ item, setSidebarOpen }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -77,7 +78,7 @@ const UserDashboardLayout = () => {
     const fetchNotifications = async (tok) => {
       try {
         if (!tok) return;
-        const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+        const notifRes = await axios.get(`${API_BASE_URL}/api/notifications`, {
           headers: { Authorization: `Bearer ${tok}` }
         });
         if (notifRes.data && Array.isArray(notifRes.data)) {
@@ -96,7 +97,7 @@ const UserDashboardLayout = () => {
         return;
       }
       try {
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data) {
@@ -140,7 +141,7 @@ const UserDashboardLayout = () => {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/notifications/${id}/read`, {}, {
+      await axios.patch(`${API_BASE_URL}/api/notifications/${id}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchNotifications();

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, ArrowRight, BrainCircuit, Wallet, Sparkles, Send, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL, AI_API_BASE_URL } from '../api/axios';
 
 const AssessmentFlow = ({ video, onClose }) => {
   const [step, setStep] = useState('quiz'); // quiz -> assignment -> result
@@ -38,13 +39,13 @@ const AssessmentFlow = ({ video, onClose }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const profileRes = await axios.get('http://localhost:5000/api/profile', {
+      const profileRes = await axios.get(`${API_BASE_URL}/api/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       const score = Object.keys(quizAnswers).filter(idx => quizAnswers[idx] === quizQuestions[idx].correct).length;
 
-      const response = await axios.post('http://localhost:8000/api/evaluate', {
+      const response = await axios.post(`${AI_API_BASE_URL}/api/evaluate`, {
         quiz_score: score,
         total_questions: quizQuestions.length,
         assignment_text: assignment,

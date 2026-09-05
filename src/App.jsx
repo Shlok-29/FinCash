@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
+import { API_BASE_URL } from './api/axios';
 import { login } from './store/slices/authSlice';
 import LandingPage from './components/LandingPage';
 import UserDashboardLayout from './modules/UserDashboard/UserDashboardLayout';
@@ -53,7 +54,7 @@ function App() {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const response = await axios.get('http://localhost:5000/api/profile', {
+          const response = await axios.get(`${API_BASE_URL}/api/profile`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (response.data) {

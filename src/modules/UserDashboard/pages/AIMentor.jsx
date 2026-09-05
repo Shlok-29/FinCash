@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, Bot, User, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
+import { AI_API_BASE_URL } from '../../../api/axios';
 
 const AIMentor = () => {
   const { user } = useSelector((state) => state.auth);
@@ -50,7 +51,7 @@ const AIMentor = () => {
         content: m.content
       }));
 
-      const response = await axios.post('http://localhost:8000/api/chat', {
+      const response = await axios.post(`${AI_API_BASE_URL}/api/chat`, {
         message: input,
         history: history
       });

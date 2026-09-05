@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
+import { API_BASE_URL } from '../../../api/axios';
 
 const Investments = () => {
   const { user } = useSelector((state) => state.auth);
@@ -35,7 +36,7 @@ const Investments = () => {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/market-data');
+        const response = await axios.get(`${API_BASE_URL}/api/market-data`);
         if (response.data && response.data.stocks) {
           setMarketData(response.data);
         }

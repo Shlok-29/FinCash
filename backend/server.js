@@ -128,10 +128,25 @@ const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.JWT_SECRET || 'fincash_secret_key';
 const MONGO_URI = process.env.MONGO_URI;
 
+const allowedOrigins = [
+    'https://fincash123.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: ['https://fincash123.netlify.app', 'http://localhost:5173'],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl) or if origin matches allowedOrigins or wildcard
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+        } else {
+            callback(null, true); // Permissive CORS for deployed Vercel apps
+        }
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 app.use(express.json());
 

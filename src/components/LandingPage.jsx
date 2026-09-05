@@ -10,6 +10,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../store/slices/authSlice";
 import RoadmapForm from "./RoadmapForm";
 import axios from "axios";
+import { API_BASE_URL } from "../api/axios";
 
 export default function LandingPage() {
   const [dark, setDark] = useState(true);
@@ -25,7 +26,7 @@ export default function LandingPage() {
       if (isAuthenticated) {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/roadmap', {
+          const response = await axios.get(`${API_BASE_URL}/api/roadmap`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           // If a roadmap exists, we could pre-set it or show a "View Roadmap" button

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
+import { API_BASE_URL } from '../../../api/axios';
 import { 
   Target, TrendingUp, ShieldCheck, Award, Zap, 
   BookOpen, ChevronRight, PlayCircle, Sparkles,
@@ -31,7 +32,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/market-data');
+        const response = await axios.get(`${API_BASE_URL}/api/market-data`);
         setMarketData(response.data);
       } catch (err) {
         console.error("Dashboard market data fetch failed:", err);
@@ -46,7 +47,7 @@ const Dashboard = () => {
     const fetchRoadmap = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/roadmap', {
+        const response = await axios.get(`${API_BASE_URL}/api/roadmap`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setRoadmap(response.data);
@@ -64,7 +65,7 @@ const Dashboard = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user-learning-paths', {
+        const response = await axios.get(`${API_BASE_URL}/api/user-learning-paths`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setLearningPaths(response.data);
@@ -76,7 +77,7 @@ const Dashboard = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-      const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user-stats', {
+      const response = await axios.get(`${API_BASE_URL}/api/user-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUserStats(response.data);
@@ -93,18 +94,18 @@ const Dashboard = () => {
       setIsUpdating(true);
       const newProgress = Math.min(currentProgress + 25, 100);
       const token = localStorage.getItem('token');
-      await axios.patch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/api/user-learning-paths/${pathId}/progress`, 
+      await axios.patch(`${API_BASE_URL}/api/user-learning-paths/${pathId}/progress`, 
         { progress: newProgress },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
       // Refresh data
-      const pathsRes = await axios.get('http://localhost:5000/api/user-learning-paths', {
+      const pathsRes = await axios.get(`${API_BASE_URL}/api/user-learning-paths`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLearningPaths(pathsRes.data);
       
-      const statsRes = await axios.get('http://localhost:5000/api/user-stats', {
+      const statsRes = await axios.get(`${API_BASE_URL}/api/user-stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserStats(statsRes.data);

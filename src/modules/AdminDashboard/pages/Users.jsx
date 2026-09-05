@@ -5,6 +5,7 @@ import {
   Mail, Calendar, DollarSign, X, Check, Activity, Shield
 } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../../api/axios';
 import jsPDF from 'jspdf';
 
 const AdminUsers = () => {
@@ -22,7 +23,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/admin/users', {
+      const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(response.data);
@@ -40,7 +41,7 @@ const AdminUsers = () => {
   const toggleEdit = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/admin/toggle-edit/${userId}`, {}, {
+      await axios.patch(`${API_BASE_URL}/api/admin/toggle-edit/${userId}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchUsers();
@@ -55,7 +56,7 @@ const AdminUsers = () => {
     setModalSuccess('');
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/signup', newUser);
+      await axios.post(`${API_BASE_URL}/api/signup`, newUser);
       setModalSuccess('User account created successfully!');
       setNewUser({ name: '', email: '', password: '', role: 'user' });
       fetchUsers();

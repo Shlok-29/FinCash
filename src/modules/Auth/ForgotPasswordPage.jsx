@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowRight, Activity, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../api/axios';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ const ForgotPasswordPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/forgot-password', { email });
+      const response = await axios.post(`${API_BASE_URL}/api/forgot-password`, { email });
       setStatus('success');
       // For demo purposes, we show the token if it's returned (it is in our mock backend)
       setMessage('Reset link sent! In this demo, use token: ' + response.data.token);

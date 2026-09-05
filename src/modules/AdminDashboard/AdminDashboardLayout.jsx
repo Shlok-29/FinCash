@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { login, logout } from '../../store/slices/authSlice';
 import axios from 'axios';
+import { API_BASE_URL } from '../../api/axios';
 import { 
   BarChart3, 
   Users, 
@@ -38,7 +39,7 @@ const AdminDashboardLayout = () => {
     const fetchNotifications = async (tok) => {
       try {
         if (!tok) return;
-        const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+        const notifRes = await axios.get(`${API_BASE_URL}/api/notifications`, {
           headers: { Authorization: `Bearer ${tok}` }
         });
         if (notifRes.data && Array.isArray(notifRes.data)) {
@@ -57,7 +58,7 @@ const AdminDashboardLayout = () => {
         return;
       }
       try {
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data) {
@@ -86,10 +87,10 @@ const AdminDashboardLayout = () => {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/notifications/${id}/read`, {}, {
+      await axios.patch(`${API_BASE_URL}/api/notifications/${id}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const notifRes = await axios.get('http://localhost:5000/api/notifications', {
+      const notifRes = await axios.get(`${API_BASE_URL}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (notifRes.data && Array.isArray(notifRes.data)) {
