@@ -397,9 +397,7 @@ Contributions are welcome! Please follow these steps to contribute:
 
 ## 24. Author
 
-* **Shlok Dubey** & Team
-* 🔗 GitHub: [@Shlok-29](https://github.com/Shlok-29)
-* 🏫 Event / Hackathon: LNCT Hackathon
+* **Shlok Dubey - [@Shlok-29](https://github.com/Shlok-29)
 
 ---
 
