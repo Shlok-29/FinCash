@@ -144,6 +144,12 @@ async def evaluate_user(data: EvaluationRequest):
 
 @app.post("/api/chat")
 async def chat_with_mentor(data: ChatRequest):
+    # 0. Enforce domain relevance check
+    if not is_finance_related(data.message):
+        return {
+            "response": "I am your FinCash AI Assistant, specialized strictly in financial literacy, investments, budgeting, taxes, crypto, and the FinCash platform. I cannot assist with unrelated topics. Please feel free to ask me any questions about personal finance, money management, or FinCash!"
+        }
+
     # 1. Try Gemini API if key configured
     if gemini_model:
         try:
@@ -182,13 +188,6 @@ async def chat_with_mentor(data: ChatRequest):
 
     # 3. Fallback / Guardrail domain handler (if API keys fail or quota exceeded)
     msg_lower = data.message.lower()
-    
-    # Check off-topic triggers
-    off_topic_words = ["recipe", "cook", "movie", "film", "actor", "sports", "football", "cricket", "game", "weather", "poem", "song", "joke", "story", "code python for web", "html button"]
-    if any(word in msg_lower for word in off_topic_words) and not any(f in msg_lower for f in ["fincash", "tax", "stock", "budget", "crypto", "bitcoin", "money", "invest"]):
-        return {
-            "response": "I am your FinCash AI Assistant, specialized strictly in financial literacy, investments, budgeting, taxes, crypto, and the FinCash platform. I cannot assist with unrelated topics. Please feel free to ask me any questions about personal finance, money management, or FinCash!"
-        }
 
     # FinCash Platform & Financial responses
     if "fincash" in msg_lower:
@@ -220,6 +219,7 @@ async def chat_with_mentor(data: ChatRequest):
     return {
         "response": "Hello! I am your FinCash AI Assistant. I can help you with budgeting, tax optimization (Section 80C), stock market investing, Bitcoin & crypto, or navigating the FinCash platform. What financial question can I help you with today?"
     }
+
 
 @app.get("/")
 async def root():

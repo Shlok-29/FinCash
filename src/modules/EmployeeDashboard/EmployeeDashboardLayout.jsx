@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { logout } from '../../store/slices/authSlice';
 import { 
   Ticket, 
   FileStack, 
@@ -15,6 +17,14 @@ import {
 
 const EmployeeDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const handleLogout = () => {
+    dispatch(logout());
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
 
   const empNavItems = [
     { name: 'Tickets', path: '/employee', icon: <Ticket size={20} /> },
@@ -23,6 +33,7 @@ const EmployeeDashboardLayout = () => {
     { name: 'Notifications', path: '/employee/notifications', icon: <Bell size={20} /> },
     { name: 'Mentor Support', path: '/employee/mentor-support', icon: <LifeBuoy size={20} /> },
   ];
+
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
@@ -79,7 +90,10 @@ const EmployeeDashboardLayout = () => {
             <Settings size={20} />
             <span>Settings</span>
           </button>
-          <button className="w-full mt-1 flex items-center gap-3 px-4 py-3 text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all text-sm font-bold">
+          <button 
+            onClick={handleLogout}
+            className="w-full mt-1 flex items-center gap-3 px-4 py-3 text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all text-sm font-bold cursor-pointer"
+          >
             <LogOut size={20} />
             <span>Logout</span>
           </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../api/axios';
 import { 
@@ -12,7 +13,9 @@ import {
 import RoadmapForm from '../../../components/RoadmapForm';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+
   const [roadmap, setRoadmap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
@@ -199,7 +202,10 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="text-indigo-400" /> Personalized Paths
           </h2>
-          <button className="text-sm text-indigo-400 hover:text-indigo-300 font-medium flex items-center">
+          <button 
+            onClick={() => navigate('/user/simulations')}
+            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 cursor-pointer transition-colors"
+          >
             View All <ChevronRight size={16} />
           </button>
         </div>
