@@ -397,7 +397,7 @@ Contributions are welcome! Please follow these steps to contribute:
 
 ## 24. Author
 
-* **Shlok Dubey - [@Shlok-29](https://github.com/Shlok-29)
+* **Shlok Dubey** - [@Shlok-29](https://github.com/Shlok-29)
 
 ---
 
